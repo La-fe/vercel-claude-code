@@ -34,6 +34,7 @@ const TOOL_ICONS: Record<string, string> = {
   grep: "🔎",
   agent: "🤖",
   web_fetch: "🌐",
+  web_search: "🔍",
   ask_user: "❓",
 };
 
@@ -46,6 +47,7 @@ const TOOL_COLORS: Record<string, string> = {
   grep: "border-purple-700 bg-purple-950",
   agent: "border-cyan-700 bg-cyan-950",
   web_fetch: "border-orange-700 bg-orange-950",
+  web_search: "border-teal-700 bg-teal-950",
   ask_user: "border-indigo-700 bg-indigo-950",
 };
 
@@ -271,6 +273,39 @@ interface AskUserQuestion {
   multiSelect?: boolean;
 }
 
+// ── WebSearch 渲染 ──
+
+interface SearchResultItem { title: string; url: string; snippet: string }
+
+function WebSearchRender({ input, output }: { input: Record<string, unknown>; output: Record<string, unknown> | null }) {
+  const query = String(input.query ?? "");
+  const results = output && Array.isArray((output as Record<string, unknown>).results)
+    ? (output as Record<string, unknown>).results as SearchResultItem[]
+    : [];
+  const error = output ? String((output as Record<string, unknown>).error ?? "") : "";
+  const durationMs = output ? Number((output as Record<string, unknown>).durationMs ?? 0) : 0;
+
+  if (error) return <div className="text-[11px] text-red-400">{error}</div>;
+
+  return (
+    <div className="space-y-1.5">
+      <div className="text-[11px] flex justify-between">
+        <span className="text-teal-300">"{query}"</span>
+        <span className="text-muted-foreground">{results.length} results · {durationMs}ms</span>
+      </div>
+      {results.map((r, i) => (
+        <div key={i} className="text-[11px] space-y-0.5">
+          <div className="text-blue-400 font-medium">{r.title}</div>
+          <div className="text-muted-foreground/60 text-[10px] truncate">{r.url}</div>
+          {r.snippet && <div className="text-muted-foreground text-[10px]">{r.snippet}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── AskUser 渲染 ──
+
 function AskUserRender({
   output,
   onOptionClick,
@@ -388,6 +423,7 @@ function getTitleHint(name: string, input: Record<string, unknown> | null): stri
     case "web_fetch": {
       try { return new URL(String(input.url ?? "")).hostname; } catch { return ""; }
     }
+    case "web_search": return String(input.query ?? "").slice(0, 40);
     default: return "";
   }
 }
@@ -403,6 +439,7 @@ function renderToolOutput(name: string, input: Record<string, unknown>, output: 
     case "glob": return <GlobRender input={input} output={output} />;
     case "agent": return <AgentRender input={input} output={output} />;
     case "web_fetch": return <WebFetchRender input={input} output={output} />;
+    case "web_search": return <WebSearchRender input={input} output={output} />;
     case "ask_user": return <AskUserRender output={output} onOptionClick={onOptionClick} />;
     default: return <FallbackRender output={output} />;
   }

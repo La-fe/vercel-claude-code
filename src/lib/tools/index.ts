@@ -9,6 +9,7 @@ import { createFileReadTool, createFileEditTool, createFileWriteTool } from "./f
 import { createGlobTool, createGrepTool } from "./search-tools";
 import { createAgentTool } from "./agent-tool";
 import { createWebFetchTool } from "./web-tool";
+import { createWebSearchTool } from "./web-search-tool";
 import { createAskUserTool } from "./ask-user-tool";
 import type { ToolContext } from "./types";
 
@@ -39,6 +40,7 @@ export function assembleTools(ctx: ToolContext) {
     file_edit: createFileEditTool(ctx),
     file_write: createFileWriteTool(ctx),
     web_fetch: createWebFetchTool(),
+    web_search: createWebSearchTool(),
   };
 
   return {
