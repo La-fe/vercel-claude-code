@@ -14,8 +14,8 @@ This project reverse-engineers [Claude Code](https://claude.ai/claude-code) (Ant
 
 ```
 Claude Code:  512,664 lines / 1,902 files
-This replica:   5,088 lines /    47 files
-Compression:      100x
+This replica:   5,300 lines /    49 files
+Compression:       96x
 ```
 
 ---
@@ -218,8 +218,12 @@ User message → Memory Recall (Haiku selects ≤5 relevant)
 
 ## Quick Start
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FLa-fe%2Fvercel-claude-code&env=OPENROUTER_API_KEY&envDescription=OpenRouter%20API%20key%20for%20Claude%20access&project-name=vercel-claude-code)
+
+### Local Development
+
 ```bash
-git clone <repo>
+git clone https://github.com/La-fe/vercel-claude-code.git
 cd vercel-claude-code
 pnpm install
 

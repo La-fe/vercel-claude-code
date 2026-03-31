@@ -5,6 +5,7 @@
 
 import { useAgentChat } from "@/components/use-ai-chat";
 import { ChatPanel } from "@/components/chat-panel";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 export default function Home() {
   const {
@@ -24,6 +25,7 @@ export default function Home() {
   });
 
   return (
+    <ErrorBoundary>
     <div className="h-screen">
       <ChatPanel
         messages={messages}
@@ -44,5 +46,6 @@ export default function Home() {
         }}
       />
     </div>
+    </ErrorBoundary>
   );
 }

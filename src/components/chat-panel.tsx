@@ -320,7 +320,7 @@ export function ChatPanel({
               <Terminal className="w-8 h-8 mx-auto text-muted-foreground/30" />
               <p>Type a message or use <code className="text-xs bg-secondary px-1 rounded">/help</code> for commands.</p>
               <p className="text-xs text-muted-foreground/50">
-                Tools: bash · file_read · file_edit · file_write · glob · grep · web_fetch · agent
+                Tools: bash · file_read · file_edit · file_write · glob · grep · web_fetch · web_search · agent · ask_user
               </p>
             </div>
           )}
