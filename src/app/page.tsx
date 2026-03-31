@@ -1,7 +1,5 @@
 /**
- * Main Page — Claude Code Replica
- *
- * Round 7: 斜杠命令 + 交互式 AskUser + 会话持久
+ * Main Page — vercel-claude-code
  */
 "use client";
 
@@ -15,9 +13,11 @@ export default function Home() {
     setInput,
     isLoading,
     handleSubmit,
+    handleKeyDown,
     stop,
     permissionMode,
     handleOptionClick,
+    agentStatus,
   } = useAgentChat({
     cwd: process.env.NEXT_PUBLIC_CWD || "",
     permissionMode: "auto",
@@ -31,12 +31,16 @@ export default function Home() {
         isLoading={isLoading}
         onInputChange={setInput}
         onSubmit={handleSubmit}
+        onKeyDown={handleKeyDown}
         onStop={stop}
         onOptionClick={handleOptionClick}
         permissionMode={permissionMode}
+        cwd={process.env.NEXT_PUBLIC_CWD || ""}
         statusInfo={{
-          model: "claude-sonnet-4-6",
-          turns: messages.filter((m) => m.role === "user").length,
+          model: agentStatus.model,
+          tokens: agentStatus.tokens,
+          cost: agentStatus.cost,
+          turns: agentStatus.turns,
         }}
       />
     </div>

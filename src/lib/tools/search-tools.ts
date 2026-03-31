@@ -8,7 +8,6 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { exec } from "child_process";
-import { glob } from "fs/promises";
 import type { ToolContext } from "./types";
 
 const MAX_RESULTS = 100;
@@ -25,21 +24,24 @@ export function createGlobTool(ctx: ToolContext) {
     }),
     execute: async ({ pattern, path: searchPath }) => {
       const cwd = searchPath ?? ctx.cwd;
-      try {
-        const matches: string[] = [];
-        for await (const entry of glob(pattern, { cwd })) {
-          matches.push(entry);
-          if (matches.length >= MAX_RESULTS) break;
-        }
+      // Use find + shell glob (works on macOS/Linux without Node 22)
+      const escapedPattern = pattern.replace(/'/g, "'\\''");
+      const cmd = `find '${cwd}' -path '*/${escapedPattern}' -not -path '*/node_modules/*' -not -path '*/.git/*' 2>/dev/null | head -${MAX_RESULTS}`;
 
-        return {
-          files: matches,
-          count: matches.length,
-          truncated: matches.length >= MAX_RESULTS,
-        };
-      } catch (err) {
-        return { error: `Glob failed: ${(err as Error).message}` };
-      }
+      return new Promise((resolve) => {
+        exec(cmd, { maxBuffer: 2 * 1024 * 1024, timeout: 15_000 }, (err, stdout) => {
+          if (err && !stdout) {
+            resolve({ files: [], count: 0, message: "No matches" });
+            return;
+          }
+          const files = stdout.trim().split("\n").filter(Boolean);
+          resolve({
+            files,
+            count: files.length,
+            truncated: files.length >= MAX_RESULTS,
+          });
+        });
+      });
     },
   });
 }

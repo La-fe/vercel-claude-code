@@ -17,6 +17,12 @@
  */
 "use client";
 
+import { Card } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Loader2, Check, X, HelpCircle, ChevronDown } from "lucide-react";
+import { DiffView } from "./diff-view";
+import { PermissionDialog } from "./permission-dialog";
+
 // ── 工具图标映射 ──
 
 const TOOL_ICONS: Record<string, string> = {
@@ -45,8 +51,25 @@ const TOOL_COLORS: Record<string, string> = {
 
 // ── Bash 渲染 (对标 BashToolResultMessage) ──
 
-function BashToolRender({ input, output }: { input: Record<string, unknown>; output: Record<string, unknown> | null }) {
+function BashToolRender({ input, output, onOptionClick }: { input: Record<string, unknown>; output: Record<string, unknown> | null; onOptionClick?: (answer: string) => void }) {
   const command = String(input.command ?? "");
+
+  // 权限确认 (default 模式返回 needs_permission)
+  if (output && (output as Record<string, unknown>).operation === "needs_permission") {
+    return (
+      <PermissionDialog
+        request={{
+          toolName: "bash",
+          input: { command },
+          reason: String((output as Record<string, unknown>).reason ?? ""),
+        }}
+        onAllow={() => onOptionClick?.(`Yes, execute: ${command}`)}
+        onDeny={() => onOptionClick?.(`No, do not execute: ${command}`)}
+        onAlwaysAllow={() => onOptionClick?.("Switch to auto mode and execute all commands without confirmation")}
+      />
+    );
+  }
+
   const stdout = output ? String((output as Record<string, unknown>).stdout ?? "") : "";
   const stderr = output ? String((output as Record<string, unknown>).stderr ?? "") : "";
   const exitCode = output ? Number((output as Record<string, unknown>).exitCode ?? 0) : null;
@@ -112,36 +135,12 @@ function FileEditRender({ input, output }: { input: Record<string, unknown>; out
   const oldStr = String(input.old_string ?? "");
   const newStr = String(input.new_string ?? "");
   const error = output ? String((output as Record<string, unknown>).error ?? "") : "";
-  const replacements = output ? Number((output as Record<string, unknown>).replacements ?? 0) : 0;
 
   if (error) return <div className="text-[11px] text-red-400">{error}</div>;
 
   return (
     <div className="space-y-1">
-      <div className="text-[11px] text-green-300 font-mono">{filePath.split("/").pop()}</div>
-      <div className="text-[10px] bg-gray-900/50 rounded overflow-hidden font-mono">
-        {/* Removed lines */}
-        {oldStr.split("\n").slice(0, 10).map((line, i) => (
-          <div key={`old-${i}`} className="px-2 bg-red-950/40 text-red-300">
-            <span className="text-red-500 mr-2">-</span>{line}
-          </div>
-        ))}
-        {oldStr.split("\n").length > 10 && (
-          <div className="px-2 text-gray-600">...+{oldStr.split("\n").length - 10} lines</div>
-        )}
-        {/* Added lines */}
-        {newStr.split("\n").slice(0, 10).map((line, i) => (
-          <div key={`new-${i}`} className="px-2 bg-green-950/40 text-green-300">
-            <span className="text-green-500 mr-2">+</span>{line}
-          </div>
-        ))}
-        {newStr.split("\n").length > 10 && (
-          <div className="px-2 text-gray-600">...+{newStr.split("\n").length - 10} lines</div>
-        )}
-      </div>
-      {replacements > 0 && (
-        <span className="text-[10px] text-green-500">{replacements} replacement(s)</span>
-      )}
+      <DiffView oldText={oldStr} newText={newStr} filename={filePath.split("/").pop()} />
     </div>
   );
 }
@@ -348,20 +347,27 @@ export function ToolCallRenderer({ toolName, input, output, isComplete, onOption
   // 工具标题摘要
   const titleHint = getTitleHint(name, input);
 
+  const StatusIcon = !isComplete ? Loader2 : hasError ? X : isAskUser ? HelpCircle : Check;
+
   return (
-    <details className={`text-xs border rounded ${colorClass} ${!isComplete ? "animate-pulse" : ""}`} open={!!hasError || isAskUser}>
-      <summary className="px-2 py-1.5 cursor-pointer flex items-center gap-1.5 select-none">
-        <span className={`${statusColor} text-[10px]`}>{statusIcon}</span>
-        <span>{icon}</span>
-        <span className="font-semibold text-gray-200">{name}</span>
-        {titleHint && <span className="text-gray-500 truncate ml-1">{titleHint}</span>}
-      </summary>
-      {isComplete && output != null && (
-        <div className="px-2 py-1.5 border-t border-gray-800">
-          {renderToolOutput(name, input ?? {}, output as Record<string, unknown>, onOptionClick)}
-        </div>
-      )}
-    </details>
+    <Collapsible defaultOpen={!!hasError || isAskUser}>
+      <Card className={`text-xs overflow-hidden ${!isComplete ? "opacity-80" : ""}`}>
+        <CollapsibleTrigger className="w-full px-2.5 py-1.5 flex items-center gap-1.5 cursor-pointer hover:bg-accent/50 transition-colors select-none">
+          <StatusIcon className={`w-3 h-3 shrink-0 ${statusColor} ${!isComplete ? "animate-spin" : ""}`} />
+          <span className="text-[11px]">{icon}</span>
+          <span className="font-semibold text-card-foreground text-[11px]">{name}</span>
+          {titleHint && <span className="text-muted-foreground truncate ml-1 text-[11px]">{titleHint}</span>}
+          <ChevronDown className="w-3 h-3 ml-auto text-muted-foreground shrink-0" />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          {isComplete && output != null && (
+            <div className="px-2.5 py-1.5 border-t border-border">
+              {renderToolOutput(name, input ?? {}, output as Record<string, unknown>, onOptionClick)}
+            </div>
+          )}
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }
 
@@ -389,7 +395,7 @@ function getTitleHint(name: string, input: Record<string, unknown> | null): stri
 /** 按工具名路由到渲染器 */
 function renderToolOutput(name: string, input: Record<string, unknown>, output: Record<string, unknown>, onOptionClick?: (answer: string) => void) {
   switch (name) {
-    case "bash": return <BashToolRender input={input} output={output} />;
+    case "bash": return <BashToolRender input={input} output={output} onOptionClick={onOptionClick} />;
     case "file_read": return <FileReadRender input={input} output={output} />;
     case "file_edit": return <FileEditRender input={input} output={output} />;
     case "file_write": return <FileWriteRender input={input} output={output} />;

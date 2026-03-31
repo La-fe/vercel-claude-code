@@ -15,22 +15,36 @@ import type { ToolContext } from "./types";
 const MAX_OUTPUT_CHARS = 100_000;
 const DEFAULT_TIMEOUT_MS = 120_000;
 
-/** 危险命令模式 */
-const DANGEROUS_PATTERNS = [
-  /rm\s+-rf\s+[\/~]/,
+/** 永远阻止的命令 */
+const BLOCKED_PATTERNS = [
   /:\(\)\s*\{\s*:\|:\s*&\s*\}/,  // fork bomb
   /mkfs\./,
   /dd\s+if=/,
   />\s*\/dev\/sd/,
 ];
 
-function isDangerous(command: string): string | null {
-  for (const pattern of DANGEROUS_PATTERNS) {
-    if (pattern.test(command)) {
-      return `Blocked dangerous command matching: ${pattern}`;
-    }
+/** default 模式下需要确认的命令 (CC 的 classifier 对标) */
+const NEEDS_CONFIRM_PATTERNS = [
+  /rm\s+-rf/,
+  /git\s+push/,
+  /git\s+reset\s+--hard/,
+  /git\s+checkout\s+--/,
+  /git\s+clean\s+-f/,
+  /npm\s+publish/,
+  /DROP\s+TABLE/i,
+  /DELETE\s+FROM/i,
+  /curl\s.*\|\s*(bash|sh)/,
+];
+
+function isBlocked(command: string): string | null {
+  for (const pattern of BLOCKED_PATTERNS) {
+    if (pattern.test(command)) return `Permanently blocked: ${pattern}`;
   }
   return null;
+}
+
+function needsConfirmation(command: string): boolean {
+  return NEEDS_CONFIRM_PATTERNS.some((p) => p.test(command));
 }
 
 function truncateOutput(output: string): string {
@@ -59,12 +73,23 @@ export function createBashTool(ctx: ToolContext) {
         .describe("Timeout in ms (max 600000, default 120000)"),
     }),
     execute: async ({ command, timeout }) => {
-      // Safety check
-      const danger = isDangerous(command);
-      if (danger) return { error: danger };
+      // 永远阻止的命令
+      const blocked = isBlocked(command);
+      if (blocked) return { error: blocked };
 
       if (!ctx.allowBash) {
         return { error: "Bash execution is not allowed in current permission mode" };
+      }
+
+      // default 模式: 危险命令返回确认请求 (对标 CC PermissionDialog)
+      if (ctx.permissionMode === "default" && needsConfirmation(command)) {
+        return {
+          operation: "needs_permission" as const,
+          tool: "bash",
+          command,
+          reason: "This command may be destructive. Please confirm.",
+          summary: `⚠️ Permission needed: \`${command.slice(0, 60)}\``,
+        };
       }
 
       const timeoutMs = timeout ?? DEFAULT_TIMEOUT_MS;
