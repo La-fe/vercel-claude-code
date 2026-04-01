@@ -17,32 +17,69 @@ function resolvePath(filePath: string, cwd: string): string {
   return path.isAbsolute(filePath) ? filePath : path.resolve(cwd, filePath);
 }
 
+/** 图片/二进制文件扩展名 */
+const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".bmp"]);
+const BINARY_EXTS = new Set([".pdf", ".zip", ".tar", ".gz", ".woff", ".woff2", ".ttf", ".eot", ".mp3", ".mp4"]);
+
 export function createFileReadTool(ctx: ToolContext) {
   return tool({
     description:
-      "Read a file's contents. Returns lines with line numbers. " +
-      "Use offset and limit for large files.",
+      "Read a file's contents. Returns text with line numbers, images as base64, or binary file info. " +
+      "Use offset and limit for large text files.",
     inputSchema: z.object({
       file_path: z.string().describe("Absolute or relative file path"),
       offset: z.number().int().min(0).optional().describe("Line number to start from (0-based)"),
-      limit: z.number().int().min(1).optional().describe("Max lines to read"),
+      limit: z.number().int().min(1).optional().describe("Max lines to read (default: 2000)"),
     }),
     execute: async ({ file_path, offset, limit }) => {
       const resolved = resolvePath(file_path, ctx.cwd);
+      const ext = path.extname(resolved).toLowerCase();
+
       try {
+        const stat = await fs.stat(resolved);
+
+        // 图片: 返回 base64 (对标 CC 的 image 支持)
+        if (IMAGE_EXTS.has(ext)) {
+          const buffer = await fs.readFile(resolved);
+          const base64 = buffer.toString("base64");
+          const mime = ext === ".svg" ? "image/svg+xml" : `image/${ext.slice(1)}`;
+          return {
+            type: "image",
+            content: `data:${mime};base64,${base64}`,
+            file: resolved,
+            size: stat.size,
+          };
+        }
+
+        // 二进制: 返回文件信息
+        if (BINARY_EXTS.has(ext)) {
+          return {
+            type: "binary",
+            file: resolved,
+            size: stat.size,
+            message: `Binary file (${ext}), ${(stat.size / 1024).toFixed(1)}KB. Cannot display contents.`,
+          };
+        }
+
+        // 文本文件
         const content = await fs.readFile(resolved, "utf-8");
         let lines = content.split("\n");
+        const totalLines = lines.length;
 
         if (offset !== undefined) lines = lines.slice(offset);
-        if (limit !== undefined) lines = lines.slice(0, limit);
+        const maxLines = limit ?? 2000;
+        const truncated = lines.length > maxLines;
+        if (truncated) lines = lines.slice(0, maxLines);
 
         const startLine = (offset ?? 0) + 1;
         const numbered = lines.map((line, i) => `${startLine + i}\t${line}`).join("\n");
 
         return {
+          type: "text",
           content: numbered,
-          totalLines: content.split("\n").length,
+          totalLines,
           file: resolved,
+          truncated,
         };
       } catch (err) {
         return { error: `Failed to read ${resolved}: ${(err as Error).message}` };
