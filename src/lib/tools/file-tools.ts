@@ -11,6 +11,7 @@ import { z } from "zod";
 import * as fs from "fs/promises";
 import * as path from "path";
 import type { ToolContext } from "./types";
+import { trackFileChange } from "../engine/file-tracker";
 
 function resolvePath(filePath: string, cwd: string): string {
   return path.isAbsolute(filePath) ? filePath : path.resolve(cwd, filePath);
@@ -80,6 +81,7 @@ export function createFileEditTool(ctx: ToolContext) {
           : content.replace(old_string, new_string);
 
         await fs.writeFile(resolved, newContent, "utf-8");
+        trackFileChange(file_path, "edit");
 
         const count = replace_all
           ? content.split(old_string).length - 1
@@ -116,6 +118,7 @@ export function createFileWriteTool(ctx: ToolContext) {
         // Ensure parent directory exists
         await fs.mkdir(path.dirname(resolved), { recursive: true });
         await fs.writeFile(resolved, content, "utf-8");
+        trackFileChange(file_path, "write");
 
         return {
           success: true,

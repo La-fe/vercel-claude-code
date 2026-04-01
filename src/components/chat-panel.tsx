@@ -74,6 +74,51 @@ function SimpleMarkdown({ text }: { text: string }) {
     }
     if (inCodeBlock) { codeBuffer.push(line); continue; }
 
+    // Markdown 表格: |col|col| 格式
+    if (line.trim().startsWith("|") && line.trim().endsWith("|")) {
+      // 收集连续的表格行
+      const tableLines: string[] = [line];
+      while (i + 1 < lines.length && lines[i + 1]!.trim().startsWith("|")) {
+        i++;
+        tableLines.push(lines[i]!);
+      }
+      // 解析: 第一行=header, 第二行=分隔(跳过), 其余=body
+      const rows = tableLines
+        .filter((l) => !l.match(/^\|[\s-:|]+\|$/)) // 跳过分隔行
+        .map((l) => l.split("|").slice(1, -1).map((c) => c.trim()));
+
+      if (rows.length > 0) {
+        const [header, ...body] = rows;
+        elements.push(
+          <div key={`table-${i}`} className="my-2 overflow-auto text-[11px]">
+            <table className="w-full border-collapse">
+              {header && (
+                <thead>
+                  <tr className="border-b border-border">
+                    {header.map((h, hi) => (
+                      <th key={hi} className="px-2 py-1 text-left font-semibold text-foreground/80">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+              )}
+              <tbody>
+                {body.map((row, ri) => (
+                  <tr key={ri} className="border-b border-border/50 hover:bg-accent/30">
+                    {row.map((cell, ci) => (
+                      <td key={ci} className="px-2 py-1 text-foreground/70">
+                        <InlineMarkdown text={cell} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        continue;
+      }
+    }
+
     if (line.startsWith("### ")) {
       elements.push(<h4 key={i} className="text-sm font-semibold text-foreground mt-3 mb-1">{line.slice(4)}</h4>);
     } else if (line.startsWith("## ")) {
@@ -338,6 +383,31 @@ export function ChatPanel({
     return () => window.removeEventListener("keydown", handler);
   }, [isLoading, onStop]);
 
+  // 图片粘贴 (对标 CC formatImageRef + pastedContents)
+  const [pastedImage, setPastedImage] = useState<string | null>(null);
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            setPastedImage(reader.result as string);
+            onInputChange(input + " [Pasted image]");
+          };
+          reader.readAsDataURL(file);
+          return;
+        }
+      }
+    };
+    window.addEventListener("paste", handler);
+    return () => window.removeEventListener("paste", handler);
+  }, [input, onInputChange]);
+
   // 斜杠命令 + @ 文件提及检测
   const handleInputChange = useCallback((value: string) => {
     onInputChange(value);
@@ -417,6 +487,14 @@ export function ChatPanel({
           onSelect={handleFileSelect}
           onClose={() => setShowFileMention(false)}
         />
+        {/* 粘贴图片预览 */}
+        {pastedImage && (
+          <div className="flex items-center gap-2 mb-1 text-[10px] text-muted-foreground">
+            <img src={pastedImage} alt="pasted" className="w-8 h-8 rounded object-cover border border-border" />
+            <span>Image attached</span>
+            <button onClick={() => setPastedImage(null)} className="text-destructive hover:text-destructive/80">remove</button>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <ChevronRight className="w-4 h-4 text-primary shrink-0" />
           <input
