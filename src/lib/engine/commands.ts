@@ -82,6 +82,11 @@ register("default", "Enter default mode (confirm dangerous ops)", () => ({
   data: { permissionMode: "default" },
 }));
 
+register("diff", "Show all file changes in this session", () => {
+  // 数据由调用方填入 (agentStatus 不含文件信息，用 action 标记)
+  return { handled: true, action: "diff" as "cost" };
+});
+
 register("mcp", "Connect to an MCP server (usage: /mcp <url>)", (args) => {
   if (!args) {
     return {

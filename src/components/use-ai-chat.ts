@@ -183,6 +183,20 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
             })
             .catch(() => {});
         }
+        // /diff → 显示文件修改
+        if (result.action === ("diff" as string)) {
+          fetch("/api/diff")
+            .then((r) => r.json())
+            .then((data: { summary: string; count: number }) => {
+              const sysMsg: UIMessage = {
+                id: `diff-${Date.now()}`,
+                role: "assistant",
+                parts: [{ type: "text", text: `**File Changes (${data.count})**\n\n\`\`\`\n${data.summary}\n\`\`\`` }],
+              };
+              setSystemMessages((prev) => [...prev, sysMsg]);
+            })
+            .catch(() => {});
+        }
         if (result.data?.permissionMode) {
           setPermissionMode(result.data.permissionMode as PermissionMode);
         }

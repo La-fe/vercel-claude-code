@@ -119,22 +119,65 @@ function SimpleMarkdown({ text }: { text: string }) {
       }
     }
 
+    // Headings
     if (line.startsWith("### ")) {
       elements.push(<h4 key={i} className="text-sm font-semibold text-foreground mt-3 mb-1">{line.slice(4)}</h4>);
     } else if (line.startsWith("## ")) {
       elements.push(<h3 key={i} className="text-sm font-bold text-foreground mt-3 mb-1">{line.slice(3)}</h3>);
     } else if (line.startsWith("# ")) {
       elements.push(<h2 key={i} className="text-base font-bold text-foreground mt-3 mb-1">{line.slice(2)}</h2>);
-    } else if (line.match(/^[-*] /)) {
+    }
+    // Horizontal rule
+    else if (line.match(/^(-{3,}|\*{3,}|_{3,})$/)) {
+      elements.push(<hr key={i} className="border-border my-3" />);
+    }
+    // Blockquote
+    else if (line.startsWith("> ")) {
+      elements.push(
+        <div key={i} className="text-sm text-muted-foreground border-l-2 border-primary/30 pl-3 py-0.5 italic">
+          <InlineMarkdown text={line.slice(2)} />
+        </div>
+      );
+    }
+    // Ordered list (1. 2. 3.)
+    else if (line.match(/^\d+\.\s/)) {
+      const num = line.match(/^(\d+)\.\s/)![1];
+      const text = line.replace(/^\d+\.\s/, "");
+      elements.push(
+        <div key={i} className="text-sm text-foreground/80 pl-3">
+          <span className="text-muted-foreground mr-1 font-mono text-xs">{num}.</span>
+          <InlineMarkdown text={text} />
+        </div>
+      );
+    }
+    // Unordered list
+    else if (line.match(/^[-*] /)) {
       elements.push(
         <div key={i} className="text-sm text-foreground/80 pl-3">
           <span className="text-muted-foreground mr-1">•</span>
           <InlineMarkdown text={line.slice(2)} />
         </div>
       );
-    } else if (line.trim() === "") {
+    }
+    // Checkbox list
+    else if (line.match(/^- \[([ x])\] /)) {
+      const checked = line[3] === "x";
+      const text = line.slice(6);
+      elements.push(
+        <div key={i} className="text-sm text-foreground/80 pl-3 flex items-start gap-1.5">
+          <span className={`text-xs mt-0.5 ${checked ? "text-green-400" : "text-muted-foreground"}`}>
+            {checked ? "☑" : "☐"}
+          </span>
+          <InlineMarkdown text={text} />
+        </div>
+      );
+    }
+    // Empty line
+    else if (line.trim() === "") {
       elements.push(<div key={i} className="h-1.5" />);
-    } else {
+    }
+    // Default paragraph
+    else {
       elements.push(<p key={i} className="text-sm text-foreground/80"><InlineMarkdown text={line} /></p>);
     }
   }
@@ -142,7 +185,8 @@ function SimpleMarkdown({ text }: { text: string }) {
 }
 
 function InlineMarkdown({ text }: { text: string }) {
-  const parts = text.split(/(\*\*.*?\*\*|`[^`]+`|\*[^*]+\*)/g);
+  // 匹配: **bold**, `code`, *italic*, [link](url), ~~strikethrough~~
+  const parts = text.split(/(\*\*.*?\*\*|`[^`]+`|\*[^*]+\*|\[.*?\]\(.*?\)|~~.*?~~)/g);
   return (
     <>
       {parts.map((part, i) => {
@@ -152,6 +196,12 @@ function InlineMarkdown({ text }: { text: string }) {
           return <code key={i} className="bg-secondary text-green-400 px-1 py-0.5 rounded text-xs font-mono">{part.slice(1, -1)}</code>;
         if (part.startsWith("*") && part.endsWith("*") && !part.startsWith("**"))
           return <em key={i} className="text-muted-foreground">{part.slice(1, -1)}</em>;
+        if (part.startsWith("~~") && part.endsWith("~~"))
+          return <del key={i} className="text-muted-foreground">{part.slice(2, -2)}</del>;
+        // [text](url)
+        const linkMatch = part.match(/^\[(.*?)\]\((.*?)\)$/);
+        if (linkMatch)
+          return <a key={i} href={linkMatch[2]} target="_blank" rel="noopener" className="text-primary underline underline-offset-2 hover:text-primary/80">{linkMatch[1]}</a>;
         return <span key={i}>{part}</span>;
       })}
     </>
