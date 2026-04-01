@@ -236,6 +236,13 @@ pnpm dev
 # Open http://localhost:3000
 ```
 
+### Docker
+
+```bash
+docker build -t vercel-claude-code .
+docker run -e OPENROUTER_API_KEY=sk-or-v1-xxx -p 3000:3000 vercel-claude-code
+```
+
 ### Commands
 
 | Command | Action |

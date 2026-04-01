@@ -24,12 +24,13 @@ export function createGlobTool(ctx: ToolContext) {
     }),
     execute: async ({ pattern, path: searchPath }) => {
       const cwd = searchPath ?? ctx.cwd;
-      // Use find + shell glob (works on macOS/Linux without Node 22)
-      const escapedPattern = pattern.replace(/'/g, "'\\''");
-      const cmd = `find '${cwd}' -path '*/${escapedPattern}' -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.next/*' -not -path '*/.agent/*' 2>/dev/null | head -${MAX_RESULTS}`;
+      // Strategy: git ls-files (fast, respects .gitignore) → fallback find
+      // Convert glob pattern to grep-friendly regex for filtering
+      const escaped = pattern.replace(/'/g, "'\\''");
+      const cmd = `(cd '${cwd}' && git ls-files --cached --others --exclude-standard 2>/dev/null || find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.next/*') | grep -E '${escaped.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*").replace(/\./g, "\\.")}' | head -${MAX_RESULTS}`;
 
       return new Promise((resolve) => {
-        exec(cmd, { maxBuffer: 2 * 1024 * 1024, timeout: 15_000 }, (err, stdout) => {
+        exec(cmd, { cwd, maxBuffer: 2 * 1024 * 1024, timeout: 15_000 }, (err, stdout) => {
           if (err && !stdout) {
             resolve({ files: [], count: 0, message: "No matches" });
             return;
