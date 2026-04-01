@@ -82,6 +82,21 @@ register("default", "Enter default mode (confirm dangerous ops)", () => ({
   data: { permissionMode: "default" },
 }));
 
+register("mcp", "Connect to an MCP server (usage: /mcp <url>)", (args) => {
+  if (!args) {
+    return {
+      handled: true,
+      message: "Usage: `/mcp <sse-url>` — Connect to an MCP server\nExample: `/mcp http://localhost:3001/sse`",
+    };
+  }
+  return {
+    handled: true,
+    action: "mcp" as "compact", // reuse action type
+    data: { mcpUrl: args },
+    message: `Connecting to MCP server: \`${args}\`...`,
+  };
+});
+
 // ── 路由 ──
 
 export function isCommand(input: string): boolean {

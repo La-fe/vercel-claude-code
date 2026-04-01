@@ -47,6 +47,8 @@ export interface AgentConfig {
   model?: string;
   /** Token 预算配置 */
   budget?: Partial<BudgetConfig>;
+  /** Extended thinking 预算 (对标 CC thinkingConfig) */
+  thinkingBudget?: number;
 }
 
 export interface HandleMessageParams {
@@ -141,6 +143,14 @@ export async function handleMessage({
     messages: modelMessages,
     tools,
     stopWhen: stepCountIs(maxSteps),
+    // Extended thinking (对标 CC thinkingConfig)
+    ...(config.thinkingBudget && {
+      providerOptions: {
+        anthropic: {
+          thinking: { type: "enabled", budgetTokens: config.thinkingBudget },
+        },
+      },
+    }),
     onFinish: ({ usage }) => {
       // 对标 Claude Code: queryLoop 结束后更新 budget
       if (usage) {

@@ -145,12 +145,29 @@ function MessageBubble({
   );
 }
 
-/** 单个 part 渲染: text → Markdown, tool → ToolCallRenderer */
+/** 单个 part 渲染: text → Markdown, reasoning → 折叠块, tool → ToolCallRenderer */
 function PartRenderer({ part, onOptionClick }: { part: UIMessage["parts"][number]; onOptionClick?: (answer: string) => void }) {
   if (part.type === "text" && "text" in part) {
     const text = part.text as string;
     if (!text.trim()) return null;
     return <SimpleMarkdown text={text} />;
+  }
+
+  // Extended thinking / reasoning (对标 CC ThinkingToggle)
+  if (part.type === "reasoning" && "text" in part) {
+    const text = (part as { text: string }).text;
+    if (!text?.trim()) return null;
+    return (
+      <details className="text-xs">
+        <summary className="text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none py-1">
+          <span className="text-purple-400">💭 Thinking</span>
+          <span className="text-muted-foreground/50 ml-2">({text.length} chars)</span>
+        </summary>
+        <div className="pl-4 border-l-2 border-purple-800 mt-1 text-muted-foreground text-[11px] whitespace-pre-wrap max-h-64 overflow-auto">
+          {text}
+        </div>
+      </details>
+    );
   }
 
   if (isToolUIPart(part)) {
@@ -229,7 +246,9 @@ function StatusBar({ info, isLoading, permissionMode }: {
       )}
       {info?.model && <span>model: <span className="text-foreground/60">{info.model}</span></span>}
       {info?.turns != null && <span>turns: <span className="text-foreground/60">{info.turns}</span></span>}
-      <span className="ml-auto text-muted-foreground/50">Vercel AI SDK · shadcn</span>
+      <span className="ml-auto text-muted-foreground/50">
+        <kbd className="text-[9px] bg-secondary px-1 rounded">⌘K</kbd> commands · Vercel AI SDK
+      </span>
     </div>
   );
 }
