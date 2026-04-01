@@ -18,6 +18,8 @@ export default function Home() {
     handleKeyDown,
     stop,
     permissionMode,
+    selectedModel,
+    setSelectedModel,
     handleOptionClick,
     agentStatus,
   } = useAgentChat({
@@ -27,13 +29,10 @@ export default function Home() {
 
   const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
 
-  // 命令面板选中 → 注入输入并提交
   const handlePaletteCommand = (cmd: string) => {
     setInput(cmd);
-    // 用 setTimeout 让 input 更新后再提交
     setTimeout(() => {
-      const form = document.querySelector("form");
-      form?.requestSubmit();
+      document.querySelector("form")?.requestSubmit();
     }, 50);
   };
 
@@ -52,11 +51,12 @@ export default function Home() {
           permissionMode={permissionMode}
           cwd={process.env.NEXT_PUBLIC_CWD || ""}
           statusInfo={{
-            model: agentStatus.model,
+            model: selectedModel,
             tokens: agentStatus.tokens,
             cost: agentStatus.cost,
             turns: agentStatus.turns,
           }}
+          onModelChange={setSelectedModel}
         />
         <CommandPalette
           open={paletteOpen}

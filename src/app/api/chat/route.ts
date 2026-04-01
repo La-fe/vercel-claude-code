@@ -30,11 +30,13 @@ export async function POST(req: NextRequest) {
       messages,
       cwd,
       permissionMode,
+      model,
       sessionId = "default",
     } = body as {
       messages: UIMessage[];
       cwd?: string;
       permissionMode?: "default" | "auto" | "plan";
+      model?: string;
       sessionId?: string;
     };
 
@@ -57,6 +59,7 @@ export async function POST(req: NextRequest) {
         config: {
           cwd: cwd || process.cwd(),
           permissionMode: permissionMode ?? "auto",
+          model: model,
           maxSteps: 25,
         },
         budgetTracker: tracker,

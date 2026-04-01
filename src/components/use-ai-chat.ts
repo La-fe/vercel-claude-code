@@ -33,6 +33,7 @@ export interface AgentStatus {
 export function useAgentChat(options: UseAgentChatOptions = {}) {
   const [input, setInput] = useState("");
   const [permissionMode, setPermissionMode] = useState<PermissionMode>(options.permissionMode ?? "auto");
+  const [selectedModel, setSelectedModel] = useState("anthropic/claude-sonnet-4-6");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [systemMessages, setSystemMessages] = useState<UIMessage[]>([]);
 
@@ -53,6 +54,8 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
   const cwdRef = useRef(options.cwd ?? "");
   const permRef = useRef(permissionMode);
   permRef.current = permissionMode;
+  const modelRef = useRef(selectedModel);
+  modelRef.current = selectedModel;
 
   const [transport] = useState(
     () =>
@@ -63,6 +66,7 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
             messages,
             cwd: cwdRef.current,
             permissionMode: permRef.current,
+            model: modelRef.current,
             sessionId,
           },
         }),
@@ -244,6 +248,8 @@ export function useAgentChat(options: UseAgentChatOptions = {}) {
     sendMessage,
     isLoading: status === "streaming" || status === "submitted",
     permissionMode,
+    selectedModel,
+    setSelectedModel,
     handleOptionClick,
     agentStatus,
     sessionId,

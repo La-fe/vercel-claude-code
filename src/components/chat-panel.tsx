@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ToolCallRenderer } from "./tool-renderers";
 import { CodeBlock } from "./code-block";
 import { FileMentionPopover } from "./file-mention";
+import { ModelPicker } from "./model-picker";
 import { getCommandNames } from "@/lib/engine/commands";
 import {
   Terminal, Loader2, Square, ChevronRight, CornerDownLeft,
@@ -36,6 +37,7 @@ interface ChatPanelProps {
   onOptionClick?: (answer: string) => void;
   permissionMode?: string;
   cwd?: string;
+  onModelChange?: (model: string) => void;
   statusInfo?: {
     model?: string;
     tokens?: number;
@@ -225,10 +227,11 @@ function CommandAutocomplete({
 
 // ── Status Bar ──
 
-function StatusBar({ info, isLoading, permissionMode }: {
+function StatusBar({ info, isLoading, permissionMode, onModelChange }: {
   info?: ChatPanelProps["statusInfo"];
   isLoading: boolean;
   permissionMode?: string;
+  onModelChange?: (model: string) => void;
 }) {
   return (
     <div className="h-7 px-3 border-t border-border bg-card flex items-center gap-3 text-[10px] text-muted-foreground font-mono shrink-0">
@@ -244,10 +247,14 @@ function StatusBar({ info, isLoading, permissionMode }: {
           "text-muted-foreground"
         }`}>{permissionMode}</Badge>
       )}
-      {info?.model && <span>model: <span className="text-foreground/60">{info.model}</span></span>}
+      {info?.model && onModelChange ? (
+        <ModelPicker currentModel={info.model} onModelChange={onModelChange} />
+      ) : info?.model ? (
+        <span>model: <span className="text-foreground/60">{info.model}</span></span>
+      ) : null}
       {info?.turns != null && <span>turns: <span className="text-foreground/60">{info.turns}</span></span>}
       <span className="ml-auto text-muted-foreground/50">
-        <kbd className="text-[9px] bg-secondary px-1 rounded">⌘K</kbd> commands · Vercel AI SDK
+        <kbd className="text-[9px] bg-secondary px-1 rounded">⌘K</kbd> commands
       </span>
     </div>
   );
@@ -285,6 +292,7 @@ export function ChatPanel({
   onOptionClick,
   permissionMode,
   cwd,
+  onModelChange,
   statusInfo,
 }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -436,7 +444,7 @@ export function ChatPanel({
       </form>
 
       {/* Status Bar */}
-      <StatusBar info={statusInfo} isLoading={isLoading} permissionMode={permissionMode} />
+      <StatusBar info={statusInfo} isLoading={isLoading} permissionMode={permissionMode} onModelChange={onModelChange} />
     </div>
   );
 }
