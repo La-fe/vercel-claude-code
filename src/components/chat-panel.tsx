@@ -253,6 +253,25 @@ function StatusBar({ info, isLoading, permissionMode }: {
   );
 }
 
+// ── 流式指示器 (带计时) ──
+
+function StreamingIndicator() {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const start = Date.now();
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="flex items-center gap-2 text-muted-foreground text-sm pl-5">
+      <Loader2 className="w-3.5 h-3.5 animate-spin text-yellow-400" />
+      <span>thinking...</span>
+      {elapsed > 0 && <span className="text-[10px] text-muted-foreground/40">{elapsed}s</span>}
+    </div>
+  );
+}
+
 // ── Main ──
 
 export function ChatPanel({
@@ -272,11 +291,32 @@ export function ChatPanel({
   const inputRef = useRef<HTMLInputElement>(null);
   const [showCommands, setShowCommands] = useState(false);
   const [showFileMention, setShowFileMention] = useState(false);
+  const userScrolledUp = useRef(false);
 
+  // 智能自动滚动: 只在用户没有手动上滚时跟随底部
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el && !userScrolledUp.current) {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [messages]);
+
+  // 检测用户是否手动上滚
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handler = () => {
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      userScrolledUp.current = !atBottom;
+    };
+    el.addEventListener("scroll", handler, { passive: true });
+    return () => el.removeEventListener("scroll", handler);
+  }, []);
+
+  // 新消息时重置滚动跟随
+  useEffect(() => {
+    if (!isLoading) userScrolledUp.current = false;
+  }, [isLoading]);
 
   // Ctrl+C → stop streaming (对标 CC 的 Ctrl-C interrupt)
   useEffect(() => {
@@ -335,23 +375,25 @@ export function ChatPanel({
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="px-4 py-3 space-y-4 max-w-4xl mx-auto">
           {messages.length === 0 && (
-            <div className="text-muted-foreground text-sm mt-8 text-center space-y-2">
-              <Terminal className="w-8 h-8 mx-auto text-muted-foreground/30" />
-              <p>Type a message or use <code className="text-xs bg-secondary px-1 rounded">/help</code> for commands.</p>
-              <p className="text-xs text-muted-foreground/50">
-                Tools: bash · file_read · file_edit · file_write · glob · grep · web_fetch · web_search · agent · ask_user
+            <div className="text-muted-foreground text-sm mt-8 text-center space-y-3">
+              <Terminal className="w-10 h-10 mx-auto text-muted-foreground/20" />
+              <p className="text-foreground/70">What would you like to build?</p>
+              <p className="text-xs text-muted-foreground/40">
+                10 tools: bash · file_read · file_edit · file_write · glob · grep · web_fetch · web_search · agent · ask_user
               </p>
+              <div className="flex flex-wrap justify-center gap-2 text-[10px] text-muted-foreground/40 mt-2">
+                <span><kbd className="bg-secondary px-1 rounded">⌘K</kbd> commands</span>
+                <span><kbd className="bg-secondary px-1 rounded">/</kbd> slash commands</span>
+                <span><kbd className="bg-secondary px-1 rounded">@</kbd> file mention</span>
+                <span><kbd className="bg-secondary px-1 rounded">↑↓</kbd> history</span>
+                <span><kbd className="bg-secondary px-1 rounded">Ctrl+C</kbd> stop</span>
+              </div>
             </div>
           )}
           {messages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} onOptionClick={onOptionClick} />
           ))}
-          {isLoading && (
-            <div className="flex items-center gap-2 text-muted-foreground text-sm pl-5">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-yellow-400" />
-              <span>thinking...</span>
-            </div>
-          )}
+          {isLoading && <StreamingIndicator />}
         </div>
       </div>
 
